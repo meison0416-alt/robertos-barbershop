@@ -1,0 +1,6 @@
+{
+  "name": "Barber Shop Haircut Gallery",
+  "description": "An interactive, premium luxury black and gold barbershop haircut gallery for men, women, and children. Powered by Firestore database scheduling pipelines, guest reviews, and high-contrast webp presentation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

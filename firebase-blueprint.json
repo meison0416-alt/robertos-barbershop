@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "Haircut": {
+      "title": "Haircut",
+      "description": "Haircut style template card details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of the haircut" },
+        "name": { "type": "string", "description": "Dynamic title of the style" },
+        "description": { "type": "string", "description": "High contrast customer-facing text description" },
+        "category": { "type": "string", "enum": ["men", "women", "children"], "description": "Filtered demographics" },
+        "imageUrl": { "type": "string", "description": "Unsplash asset illustration link" },
+        "price": { "type": "number", "description": "Service monetary cost in USD" },
+        "duration": { "type": "number", "description": "Appointment duration estimation in minutes" },
+        "details": { "type": "string", "description": "Detailed pre-styling procedural instructions" },
+        "likes": { "type": "number", "description": "Aggregated user satisfaction count" }
+      },
+      "required": ["id", "name", "description", "category", "imageUrl", "price", "duration", "likes"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Shedules registered for physical hair salon cutting chairs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique booking reference code" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "completed", "cancelled"], "description": "Fulfillment state" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "ISO timestamp when the session reservation request occurred" },
+        "bookingDate": { "type": "string", "description": "YYYY-MM-DD target calendar date" },
+        "bookingTime": { "type": "string", "description": "HH:MM daily time slot designation" },
+        "customerName": { "type": "string", "description": "Given first and last name of salon guest" },
+        "customerEmail": { "type": "string", "format": "email", "description": "Electronic mail address for lookup" },
+        "customerPhone": { "type": "string", "description": "Contact telephone number" },
+        "customerNotes": { "type": "string", "description": "Custom comments or structural notes" },
+        "haircutId": { "type": "string", "description": "Associated styling option key reference" },
+        "haircutName": { "type": "string", "description": "Associated styling name text" },
+        "haircutPrice": { "type": "number", "description": "Styling options price tracking snapshot" }
+      },
+      "required": ["id", "status", "createdAt", "bookingDate", "bookingTime", "customerName", "customerEmail", "customerPhone", "haircutId", "haircutName", "haircutPrice"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Styling and aesthetic quality feedback shared by guests",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique feedback index reference" },
+        "haircutId": { "type": "string", "description": "Associated style node ID" },
+        "customerName": { "type": "string", "description": "Styling reviewer display identifier name" },
+        "rating": { "type": "number", "description": "Aesthetic scoring from 1 to 5 stars" },
+        "comment": { "type": "string", "description": "Customer comments text" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamps of comment execution" }
+      },
+      "required": ["id", "haircutId", "customerName", "rating", "comment", "createdAt"]
+    }
+  },
+  "firestore": {
+    "haircuts/{haircutId}": {
+      "schema": "Haircut",
+      "description": "Master list of styled cuts made available by the gallery"
+    },
+    "bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Appointments submitted for reserving seats at premium styling grids"
+    },
+    "reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Ratings and descriptions left by customers"
+    }
+  }
+}

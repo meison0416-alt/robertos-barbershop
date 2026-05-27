@@ -1,0 +1,135 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net default rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY HIGHER-ORDER FUNCTIONS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      // Look up admin status in a trusted collections path
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- ENTITY SCHEMA VALIDATORS ---
+    
+    function isValidHaircut(data) {
+      return data.keys().hasAll(['id', 'name', 'description', 'category', 'imageUrl', 'price', 'duration', 'details', 'likes'])
+        && data.keys().size() == 9
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 100
+        && data.description is string && data.description.size() <= 1000
+        && data.category is string && (data.category == 'men' || data.category == 'women' || data.category == 'children')
+        && data.imageUrl is string && data.imageUrl.size() <= 2048
+        && data.price is number && data.price >= 0 && data.price <= 1000
+        && data.duration is number && data.duration > 0 && data.duration <= 480
+        && data.details is string && data.details.size() <= 2000
+        && data.likes is number && data.likes >= 0;
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(['customerName', 'customerEmail', 'customerPhone', 'haircutId', 'haircutName', 'bookingDate', 'bookingTime', 'status', 'createdAt'])
+        && (data.keys().size() == 9 || (data.keys().size() == 10 && data.keys().hasAll(['notes'])))
+        && data.customerName is string && data.customerName.size() <= 100
+        && data.customerEmail is string && data.customerEmail.size() <= 100
+        && data.customerPhone is string && data.customerPhone.size() <= 25
+        && data.haircutId is string && data.haircutId.size() <= 128
+        && data.haircutName is string && data.haircutName.size() <= 100
+        && data.bookingDate is string && data.bookingDate.size() == 10
+        && data.bookingTime is string && data.bookingTime.size() <= 10
+        && data.status is string && (data.status == 'pending' || data.status == 'confirmed' || data.status == 'completed' || data.status == 'cancelled')
+        && data.createdAt is string && data.createdAt.size() <= 50
+        && (!data.keys().hasAll(['notes']) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['customerName', 'rating', 'comment', 'haircutId', 'createdAt'])
+        && data.keys().size() == 5
+        && data.customerName is string && data.customerName.size() <= 100
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() <= 1000
+        && data.haircutId is string && data.haircutId.size() <= 128
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    // --- COLLECTION GATES ---
+
+    // Collection: haircuts
+    match /haircuts/{haircutId} {
+      allow read: if true;
+      allow create: if isValidHaircut(incoming()) && isValidId(haircutId);
+      allow update: if isValidHaircut(incoming()) && isValidId(haircutId) && (
+        isAdmin() || 
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['likes']) &&
+          incoming().likes == existing().likes + 1
+        )
+      );
+      allow delete: if isAdmin() && isValidId(haircutId);
+    }
+
+    // Collection: bookings
+    match /bookings/{bookingId} {
+      // 1. Submit custom bookings
+      allow create: if isValidBooking(incoming()) 
+                     && isValidId(bookingId) 
+                     && exists(/databases/$(database)/documents/haircuts/$(incoming().haircutId));
+
+      // 2. Fetch specific bookings for details lookup
+      allow get: if true; 
+
+      // 3. Complete list queries are for admins only to prevent sweeping private information
+      allow list: if isAdmin();
+
+      // 4. Update is partitioned into tiers: 
+      //    - Admins can edit anything that remains a valid Booking shape.
+      //    - Customers can only change status to 'cancelled', keeping other fields unchanged.
+      allow update: if isValidId(bookingId) && (
+        (isAdmin() && isValidBooking(incoming())) ||
+        (
+          incoming().customerName == existing().customerName &&
+          incoming().customerEmail == existing().customerEmail &&
+          incoming().customerPhone == existing().customerPhone &&
+          incoming().haircutId == existing().haircutId &&
+          incoming().haircutName == existing().haircutName &&
+          incoming().bookingDate == existing().bookingDate &&
+          incoming().bookingTime == existing().bookingTime &&
+          incoming().createdAt == existing().createdAt &&
+          (!incoming().keys().hasAll(['notes']) || (incoming().notes == existing().notes)) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+          incoming().status == 'cancelled'
+        )
+      );
+      
+      allow delete: if isAdmin() && isValidId(bookingId);
+    }
+
+    // Collection: reviews
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isValidReview(incoming()) 
+                     && isValidId(reviewId) 
+                     && exists(/databases/$(database)/documents/haircuts/$(incoming().haircutId));
+      allow update: if isAdmin() && isValidReview(incoming()) && isValidId(reviewId);
+      allow delete: if isAdmin() && isValidId(reviewId);
+    }
+  }
+}
