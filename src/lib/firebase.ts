@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { getFirestore, doc, getDoc, getDocFromServer, collection, addDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, where, orderBy } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import firebaseConfig from "../../firebase-applet-config.json";
 
 // Operation Enum requested by Firebase integration instructions
@@ -43,6 +44,7 @@ let app;
 let db: any = null;
 let auth: any = null;
 let googleProvider: any = null;
+let storage: any = null;
 
 if (isFirebaseConfigured) {
   try {
@@ -50,12 +52,13 @@ if (isFirebaseConfigured) {
     db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
     auth = getAuth(app);
     googleProvider = new GoogleAuthProvider();
+    storage = getStorage(app);
   } catch (error) {
     console.warn("Failed to initialize active Firebase instance:", error);
   }
 }
 
-export { db, auth, googleProvider };
+export { db, auth, googleProvider, storage };
 
 // --- HARDENED FIREBASE ERROR HANDLER MANDATED BY SECURITY COMPLIANCE ---
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {

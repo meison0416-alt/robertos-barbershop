@@ -9,7 +9,8 @@ import {
   where, 
   orderBy 
 } from "firebase/firestore";
-import { db, isFirebaseConfigured, handleFirestoreError, OperationType } from "./firebase";
+import { db, isFirebaseConfigured, handleFirestoreError, OperationType, storage } from "./firebase";
+import { ref, listAll, getDownloadURL } from "firebase/storage";
 import { Haircut, Booking, Review, Barber } from "../types";
 
 // INITIAL PREMIUM STYLES WITH A BLACK & GOLD LUXURY THEME
@@ -187,31 +188,83 @@ async function ensureHaircutsExist() {
   }
 }
 
-// 1. Get Haircuts (Reads Firestore if online, otherwise local)
+async function getStorageHaircutsForCategory(category: string): Promise<Haircut[]> {
+  if (!isFirebaseConfigured || !storage) return [];
+  try {
+    const folderRef = ref(storage, category);
+    const listResult = await listAll(folderRef);
+    const items: Haircut[] = [];
+    
+    for (const itemRef of listResult.items) {
+      try {
+        const url = await getDownloadURL(itemRef);
+        // Use a generic name to avoid displaying file names on the app
+        const cleanName = "Exclusive Style";
+        
+        items.push({
+          id: `storage-${category}-${itemRef.name}`,
+          name: cleanName,
+          description: `Custom style uploaded to our ${category} collection.`,
+          category: category as any,
+          imageUrl: url,
+          price: 45, // default
+          duration: 45,
+          details: `This is a custom haircut design uploaded directly to the ${category} storage gallery.`,
+          likes: 0
+        });
+      } catch (err) {
+        console.error(`Error loading image ${itemRef.name}:`, err);
+      }
+    }
+    return items;
+  } catch (error) {
+    console.error(`Error listing folder ${category}:`, error);
+    return [];
+  }
+}
+
+// 1. Get Haircuts (Reads Firestore if online, otherwise local, and merges Firebase Storage files)
 export async function getHaircuts(): Promise<Haircut[]> {
+  let firestoreCuts: Haircut[] = [];
   if (isFirebaseConfigured && db) {
     const path = "haircuts";
     try {
       await ensureHaircutsExist();
       const collRef = collection(db, path);
       const querySnapshot = await getDocs(collRef);
-      const list: Haircut[] = [];
       querySnapshot.forEach((docSnap) => {
-        list.push({ id: docSnap.id, ...docSnap.data() } as Haircut);
+        firestoreCuts.push({ id: docSnap.id, ...docSnap.data() } as Haircut);
       });
-      return list.length > 0 ? list : INITIAL_HAIRCUTS;
     } catch (error) {
-      return handleFirestoreError(error, OperationType.GET, path);
+      console.warn("Failed to fetch haircuts from Firestore:", error);
     }
   } else {
     // Local storage fallback
     const stored = localStorage.getItem("aureum_haircuts");
     if (stored) {
-      return JSON.parse(stored);
+      firestoreCuts = JSON.parse(stored);
+    } else {
+      firestoreCuts = [...INITIAL_HAIRCUTS];
     }
-    localStorage.setItem("aureum_haircuts", JSON.stringify(INITIAL_HAIRCUTS));
-    return INITIAL_HAIRCUTS;
   }
+
+  // If Firebase and Storage are configured, fetch storage files and combine
+  if (isFirebaseConfigured && storage) {
+    try {
+      const [menStorage, womenStorage, childrenStorage] = await Promise.all([
+        getStorageHaircutsForCategory("men"),
+        getStorageHaircutsForCategory("women"),
+        getStorageHaircutsForCategory("children")
+      ]);
+      
+      const combined = [...firestoreCuts, ...menStorage, ...womenStorage, ...childrenStorage];
+      return combined.length > 0 ? combined : INITIAL_HAIRCUTS;
+    } catch (e) {
+      console.error("Error fetching storage haircuts:", e);
+    }
+  }
+
+  return firestoreCuts.length > 0 ? firestoreCuts : INITIAL_HAIRCUTS;
 }
 
 // Increment likes (Client feature)

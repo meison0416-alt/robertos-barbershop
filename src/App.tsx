@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Header from "./components/Header";
 import HaircutCard from "./components/HaircutCard";
 import HaircutDetailsModal from "./components/HaircutDetailsModal";
+import PriceList from "./components/PriceList";
 import { getHaircuts, INITIAL_HAIRCUTS } from "./lib/db";
 import { Haircut } from "./types";
 import { ShieldCheck, HelpCircle, Sparkles } from "lucide-react";
@@ -62,6 +63,24 @@ export default function App() {
     return cut.category === categoryFilter;
   });
 
+  const handleNextHaircut = () => {
+    if (!selectedHaircut) return;
+    const currentIndex = filteredHaircuts.findIndex(h => h.id === selectedHaircut.id);
+    if (currentIndex !== -1) {
+      const nextIndex = (currentIndex + 1) % filteredHaircuts.length;
+      setSelectedHaircut(filteredHaircuts[nextIndex]);
+    }
+  };
+
+  const handlePrevHaircut = () => {
+    if (!selectedHaircut) return;
+    const currentIndex = filteredHaircuts.findIndex(h => h.id === selectedHaircut.id);
+    if (currentIndex !== -1) {
+      const prevIndex = (currentIndex - 1 + filteredHaircuts.length) % filteredHaircuts.length;
+      setSelectedHaircut(filteredHaircuts[prevIndex]);
+    }
+  };
+
   return (
     <div id="app-root" className="min-h-screen bg-[#070707] flex flex-col justify-between selection:bg-gold-500 selection:text-black text-[#e5e5e5]">
       
@@ -115,13 +134,14 @@ export default function App() {
                 {[
                   { id: "men", label: "MEN" },
                   { id: "women", label: "WOMEN" },
-                  { id: "children", label: "CHILDREN" }
+                  { id: "children", label: "CHILDREN" },
+                  { id: "prices", label: "PRICES" }
                 ].map((chip) => (
                   <button
                     key={chip.id}
                     id={`filter-chip-${chip.id}`}
                     onClick={() => setCategoryFilter(chip.id)}
-                    className={`flex-1 min-w-[140px] max-w-[240px] text-center py-4 px-6 md:px-8 rounded-lg border text-xs sm:text-sm font-display font-black tracking-[0.25em] uppercase transition-all duration-300 transform cursor-pointer ${
+                    className={`flex-1 min-w-[120px] max-w-[200px] text-center py-4 px-6 md:px-8 rounded-lg border text-xs sm:text-sm font-display font-black tracking-[0.25em] uppercase transition-all duration-300 transform cursor-pointer ${
                       categoryFilter === chip.id
                         ? "bg-gold-500 text-black border-gold-400 font-black shadow-[0_0_20px_rgba(212,175,55,0.25)] scale-105"
                         : "bg-[#0b0b0b] text-stone-400 border-gold-900/30 hover:border-gold-500/60 hover:text-white hover:bg-zinc-900 hover:scale-[1.02]"
@@ -133,9 +153,11 @@ export default function App() {
               </div>
             </section>
 
-            {/* Gallery Card Grid */}
+            {/* Gallery Card Grid or Price List */}
             <section id="catalog-cards-grid" className="max-w-7xl mx-auto px-6 py-10">
-              {loading ? (
+              {categoryFilter === "prices" ? (
+                <PriceList />
+              ) : loading ? (
                 <div className="text-center py-20 font-mono text-zinc-400 animate-pulse text-xs tracking-widest uppercase">
                   Seeding & cataloging authentic haircuts...
                 </div>
@@ -153,6 +175,7 @@ export default function App() {
                     <HaircutCard
                       key={cut.id}
                       haircut={cut}
+                      onClick={() => setSelectedHaircut(cut)}
                     />
                   ))}
                 </div>
@@ -173,6 +196,8 @@ export default function App() {
             haircut={selectedHaircut}
             onClose={() => setSelectedHaircut(null)}
             onLike={handleLike}
+            onNext={handleNextHaircut}
+            onPrev={handlePrevHaircut}
           />
         )}
       </AnimatePresence>

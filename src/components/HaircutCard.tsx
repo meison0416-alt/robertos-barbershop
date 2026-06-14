@@ -4,15 +4,17 @@ import { motion } from "motion/react";
 
 interface HaircutCardProps {
   haircut: Haircut;
+  onClick?: () => void;
 }
 
-export const HaircutCard: React.FC<HaircutCardProps> = ({ haircut }) => {
+export const HaircutCard: React.FC<HaircutCardProps> = ({ haircut, onClick }) => {
   return (
     <motion.div
       id={`haircut-card-${haircut.id}`}
       whileHover={{ y: -6, scale: 1.01 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="group relative bg-[#0e0e0e] border border-gold-900/30 hover:border-gold-400/80 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 col-span-1"
+      onClick={onClick}
+      className="group relative bg-[#0e0e0e] border border-gold-900/30 hover:border-gold-400/80 rounded-xl overflow-hidden shadow-2xl transition-all duration-300 col-span-1 cursor-pointer"
     >
       {/* Haircut image wrapper */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-950">
