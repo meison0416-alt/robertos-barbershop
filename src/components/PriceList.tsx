@@ -1,4 +1,5 @@
 import React from "react";
+import { Scissors } from "lucide-react";
 
 export const PriceList: React.FC = () => {
   return (
@@ -134,10 +135,30 @@ export const PriceList: React.FC = () => {
 
         {/* Columna 3: Espacio decorativo o Logotipo */}
         <div className="hidden lg:block h-full">
-          <div className="p-8 border-2 border-dashed border-[#5d4037] rounded-xl flex flex-col items-center justify-center opacity-40 h-full min-h-[350px]">
-            <span className="text-6xl text-[#d4af37] mb-4 animate-pulse">✂️</span>
-            <p className="font-display text-center text-xl tracking-widest text-[#d4af37] uppercase font-bold">
-              Roberto<br />Barbershop
+          <div className="bg-gradient-to-b from-[#1c1512] to-[#0a0a0a] border border-[#5d4037]/60 hover:border-[#d4af37] rounded-xl flex flex-col items-center justify-center p-8 text-center relative overflow-hidden h-full min-h-[350px] shadow-[0_15px_30px_rgba(0,0,0,0.5)] group/logo transition-all duration-300">
+            {/* Ambient gold background glow */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.06)_0%,transparent_70%)]" />
+            
+            {/* Decorative gold border frame */}
+            <div className="absolute inset-4 border border-[#d4af37]/10 rounded-lg pointer-events-none group-hover/logo:border-[#d4af37]/20 transition-all duration-300" />
+            
+            {/* Scissors Icon */}
+            <Scissors className="w-12 h-12 text-[#d4af37] mb-6 stroke-1.2 transition-transform duration-500 group-hover/logo:scale-110 group-hover/logo:rotate-45" />
+            
+            {/* Elegant Branding text */}
+            <div className="relative z-10 space-y-3">
+              <div className="h-px w-12 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent mx-auto" />
+              <p className="font-display text-center text-2xl tracking-[0.25em] text-white uppercase font-black leading-none drop-shadow-md">
+                Roberto
+              </p>
+              <p className="font-mono text-center text-[10px] tracking-[0.4em] text-[#d4af37] uppercase font-light">
+                BARBERSHOP
+              </p>
+              <div className="h-px w-12 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent mx-auto" />
+            </div>
+            
+            <p className="mt-8 text-[9px] font-mono tracking-widest text-stone-500 uppercase">
+              EST. 2021
             </p>
           </div>
         </div>
