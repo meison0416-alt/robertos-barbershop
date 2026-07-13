@@ -41,3 +41,11 @@ export interface Barber {
   bio: string;
   specialty: string;
 }
+
+export interface PriceItem {
+  id: string;
+  category: string;
+  name: string;
+  price: number;
+  order: number;
+}

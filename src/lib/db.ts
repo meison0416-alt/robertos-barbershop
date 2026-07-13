@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { db, isFirebaseConfigured, handleFirestoreError, OperationType, storage } from "./firebase";
 import { ref, listAll, getDownloadURL, uploadBytes, deleteObject } from "firebase/storage";
-import { Haircut, Booking, Review, Barber } from "../types";
+import { Haircut, Booking, Review, Barber, PriceItem } from "../types";
 
 // INITIAL PREMIUM STYLES WITH A BLACK & GOLD LUXURY THEME
 export const INITIAL_HAIRCUTS: Haircut[] = [
@@ -479,5 +479,91 @@ export async function addReview(inputs: Omit<Review, "id" | "createdAt">): Promi
     const updated = [newReview, ...current];
     localStorage.setItem("aureum_reviews", JSON.stringify(updated));
     return newReview;
+  }
+}
+
+// --- PRICE LIST SEEDING & MANAGEMENT ---
+
+export const INITIAL_PRICES: PriceItem[] = [
+  // Damas / Women
+  { id: "women_cut", category: "women", name: "Corte de Dama / Women's Cut", price: 25, order: 1 },
+  // Hombre / Man
+  { id: "men_regular", category: "men", name: "Corte Regular / Regular Cut", price: 25, order: 1 },
+  { id: "men_fade", category: "men", name: "Corte Fade", price: 30, order: 2 },
+  { id: "men_fade_beard", category: "men", name: "Corte Fade + Barba / Beard", price: 35, order: 3 },
+  { id: "men_lineup_beard", category: "men", name: "Line up & Beard", price: 20, order: 4 },
+  { id: "men_beard_color", category: "men", name: "Color de Barba / Beard Color", price: 35, order: 5 },
+  { id: "men_designs", category: "men", name: "Diseños / Designs", price: 20, order: 6 },
+  { id: "men_senior", category: "men", name: "Adulto Mayor / Senior Citizen", price: 25, order: 7 },
+  // Adolescentes / Teenagers
+  { id: "teen_regular", category: "teenagers", name: "Regular", price: 25, order: 1 },
+  { id: "teen_fade", category: "teenagers", name: "Fade", price: 30, order: 2 },
+  // Niños / Boys
+  { id: "boys_regular", category: "boys", name: "Corte Regular / Regular Cut", price: 20, order: 1 },
+  { id: "boys_fade", category: "boys", name: "Corte Fade", price: 25, order: 2 },
+  { id: "boys_fade_design", category: "boys", name: "Corte Fade + Diseño / Design", price: 30, order: 3 },
+  // Extras
+  { id: "extra_eyebrows", category: "extras", name: "Cejas / Eyebrows", price: 10, order: 1 },
+  { id: "extra_hottowel", category: "extras", name: "Toalla Caliente / Hot Towel", price: 10, order: 2 }
+];
+
+async function ensurePricesExist() {
+  if (!isFirebaseConfigured || !db) return;
+  try {
+    const querySnapshot = await getDocs(collection(db, "priceList"));
+    if (querySnapshot.empty) {
+      console.log("Firestore price list database is empty. Seeding initial price items...");
+      for (const item of INITIAL_PRICES) {
+        await setDoc(doc(db, "priceList", item.id), item);
+      }
+    }
+  } catch (error) {
+    console.error("Error checking or seeding price list: ", error);
+  }
+}
+
+export async function getPriceList(): Promise<PriceItem[]> {
+  if (isFirebaseConfigured && db) {
+    const path = "priceList";
+    try {
+      await ensurePricesExist();
+      const collRef = collection(db, path);
+      const querySnapshot = await getDocs(collRef);
+      const list: PriceItem[] = [];
+      querySnapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() } as PriceItem);
+      });
+      return list.length > 0 ? list : INITIAL_PRICES;
+    } catch (error) {
+      console.warn("Failed to fetch price list from Firestore:", error);
+      return INITIAL_PRICES;
+    }
+  } else {
+    // Local storage fallback
+    const stored = localStorage.getItem("aureum_pricelist");
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    localStorage.setItem("aureum_pricelist", JSON.stringify(INITIAL_PRICES));
+    return INITIAL_PRICES;
+  }
+}
+
+export async function updatePriceItem(item: PriceItem): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    const path = `priceList/${item.id}`;
+    try {
+      await setDoc(doc(db, "priceList", item.id), item);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  } else {
+    // Local storage fallback
+    const list = await getPriceList();
+    const index = list.findIndex(i => i.id === item.id);
+    if (index !== -1) {
+      list[index] = item;
+      localStorage.setItem("aureum_pricelist", JSON.stringify(list));
+    }
   }
 }

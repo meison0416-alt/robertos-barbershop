@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Haircut } from "../types";
-import { getHaircuts, addOrUpdateHaircut, uploadHaircutImage, deleteHaircut } from "../lib/db";
+import { Haircut, PriceItem } from "../types";
+import { 
+  getHaircuts, 
+  addOrUpdateHaircut, 
+  uploadHaircutImage, 
+  deleteHaircut,
+  getPriceList,
+  updatePriceItem
+} from "../lib/db";
 import { 
   KeyRound, 
   UploadCloud, 
@@ -11,7 +18,9 @@ import {
   X, 
   Scissors, 
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  ClipboardList,
+  Image as ImageIcon
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -26,42 +35,64 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState("");
 
-  // Business logic states
-  const [haircuts, setHaircuts] = useState<Haircut[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Tabs: "gallery" manages uploaded haircut cards, "prices" manages the pricelist menu
+  const [activeTab, setActiveTab] = useState<"gallery" | "prices">("gallery");
 
-  // Upload Form states
+  // Gallery Management States
+  const [haircuts, setHaircuts] = useState<Haircut[]>([]);
+  const [loadingCuts, setLoadingCuts] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [category, setCategory] = useState<"men" | "women" | "children">("men");
   const [price, setPrice] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState("");
-
-  // Edit/Delete states
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Load Inventory
+  // Price List Menu Management States
+  const [priceItems, setPriceItems] = useState<PriceItem[]>([]);
+  const [loadingPrices, setLoadingPrices] = useState(false);
+  const [editingPriceItemId, setEditingPriceItemId] = useState<string | null>(null);
+  const [editPriceItemPrice, setEditPriceItemPrice] = useState("");
+  const [savingPriceItemId, setSavingPriceItemId] = useState<string | null>(null);
+
+  // Load Inventory (Gallery & Price List)
   const loadInventory = async () => {
-    setLoading(true);
+    setLoadingCuts(true);
     try {
       const data = await getHaircuts();
       setHaircuts(data);
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setLoadingCuts(false);
+    }
+  };
+
+  const loadPriceItemsList = async () => {
+    setLoadingPrices(true);
+    try {
+      const data = await getPriceList();
+      setPriceItems(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingPrices(false);
     }
   };
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadInventory();
+      if (activeTab === "gallery") {
+        loadInventory();
+      } else {
+        loadPriceItemsList();
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeTab]);
 
   // Handle Passcode verification
   const handleLogin = (e: React.FormEvent) => {
@@ -177,6 +208,59 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
     }
   };
 
+  // Handle Price Menu Items Edit
+  const startPriceItemEdit = (item: PriceItem) => {
+    setEditingPriceItemId(item.id);
+    setEditPriceItemPrice(item.price.toString());
+  };
+
+  const savePriceItemEdit = async (item: PriceItem) => {
+    if (!editPriceItemPrice) return;
+    setSavingPriceItemId(item.id);
+    try {
+      const updated: PriceItem = {
+        ...item,
+        price: parseFloat(editPriceItemPrice)
+      };
+      await updatePriceItem(updated);
+      setEditingPriceItemId(null);
+      await loadPriceItemsList();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingPriceItemId(null);
+    }
+  };
+
+  // Group price items by category for layout
+  const groupedPriceItems = () => {
+    const groups: { [key: string]: PriceItem[] } = {
+      women: [],
+      men: [],
+      teenagers: [],
+      boys: [],
+      extras: []
+    };
+    priceItems.forEach(item => {
+      if (groups[item.category]) {
+        groups[item.category].push(item);
+      }
+    });
+    // Sort items inside groups by order
+    Object.keys(groups).forEach(cat => {
+      groups[cat].sort((a, b) => a.order - b.order);
+    });
+    return groups;
+  };
+
+  const categoriesMap: { [key: string]: string } = {
+    women: "👩 Damas / Women",
+    men: "🧔 Hombres / Men",
+    teenagers: "🧑 Adolescentes / Teenagers",
+    boys: "🧒 Niños / Boys",
+    extras: "✨ Extras / Services"
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#070707] flex items-center justify-center p-6 text-[#e5e5e5]">
@@ -238,251 +322,389 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
     <div className="min-h-screen bg-[#070707] text-[#e5e5e5] pb-20">
       {/* Admin Subheader Navigation */}
       <section className="bg-gradient-to-b from-[#0f0f0f] to-[#070707] border-b border-gold-900/35 px-6 py-6 sticky top-0 z-40 backdrop-blur-md bg-opacity-95">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-[10px] font-mono tracking-[0.2em] text-gold-400 uppercase">
               <Sparkles className="w-3.5 h-3.5" />
               Portal Administrativo
             </div>
             <h2 className="font-display text-2xl font-black text-white tracking-widest uppercase mt-1">
-              GESTIÓN DE CORTES
+              CONTROL DE BARBERÍA
             </h2>
+          </div>
+
+          {/* Sub Navigation Tabs */}
+          <div className="flex bg-black/60 p-1 border border-gold-900/20 rounded-lg max-w-sm">
+            <button
+              onClick={() => setActiveTab("gallery")}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-mono tracking-wider uppercase rounded-md transition-all cursor-pointer ${
+                activeTab === "gallery"
+                  ? "bg-gold-500 text-black font-bold"
+                  : "text-stone-400 hover:text-white"
+              }`}
+            >
+              <ImageIcon className="w-4 h-4" /> Fotos / Galería
+            </button>
+            <button
+              onClick={() => setActiveTab("prices")}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-mono tracking-wider uppercase rounded-md transition-all cursor-pointer ${
+                activeTab === "prices"
+                  ? "bg-gold-500 text-black font-bold"
+                  : "text-stone-400 hover:text-white"
+              }`}
+            >
+              <ClipboardList className="w-4 h-4" /> Lista de Precios
+            </button>
           </div>
           
           <button
             onClick={onBack}
-            className="self-start sm:self-auto flex items-center gap-2 px-5 py-2.5 bg-black border border-gold-900/40 rounded-lg text-xs font-mono text-gold-300 hover:text-white hover:border-gold-400 transition-all cursor-pointer"
+            className="self-start md:self-auto flex items-center gap-2 px-5 py-2.5 bg-black border border-gold-900/40 rounded-lg text-xs font-mono text-gold-300 hover:text-white hover:border-gold-400 transition-all cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" /> VOLVER A LA GALERÍA
           </button>
         </div>
       </section>
 
-      <main className="max-w-7xl mx-auto px-6 mt-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
-        
-        {/* LEFT COLUMN: Upload Panel (5 cols) */}
-        <section className="lg:col-span-5 bg-gradient-to-b from-[#111] to-[#0a0a0a] border border-gold-900/30 p-6 rounded-2xl shadow-xl h-fit">
-          <h3 className="font-display text-lg font-black text-[#d4af37] uppercase tracking-wider mb-6 flex items-center gap-2">
-            <UploadCloud className="w-5 h-5" />
-            Publicar Nuevo Corte
-          </h3>
-
-          <form onSubmit={handleUpload} className="space-y-5">
-            {/* File upload zone */}
-            <div className="relative border-2 border-dashed border-gold-900/30 hover:border-gold-500/50 rounded-xl overflow-hidden aspect-[4/3] flex flex-col items-center justify-center bg-black/40 transition-colors group">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-              />
-              
-              {previewUrl ? (
-                <img
-                  src={previewUrl}
-                  alt="Vista previa"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="text-center p-6 pointer-events-none">
-                  <UploadCloud className="w-10 h-10 text-gold-600 mx-auto mb-3 group-hover:text-gold-400 transition-colors" />
-                  <span className="text-xs text-stone-300 block font-semibold mb-1">
-                    Seleccionar Foto
-                  </span>
-                  <span className="text-[10px] text-zinc-500 block font-mono">
-                    PNG, JPG o WEBP desde macOS
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Form Fields */}
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-mono tracking-widest text-zinc-400 block mb-1.5 uppercase">
-                  Categoría / Colección
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["men", "women", "children"] as const).map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setCategory(cat)}
-                      className={`py-2 text-[10px] font-mono tracking-wider uppercase rounded border font-bold transition-all cursor-pointer ${
-                        category === cat
-                          ? "bg-gold-500 text-black border-gold-400 font-bold"
-                          : "bg-black/50 text-zinc-400 border-gold-900/20 hover:text-white"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-mono tracking-widest text-zinc-400 block mb-1 uppercase">
-                  Precio (USD)
-                </label>
-                <div className="relative">
-                  <DollarSign className="w-4 h-4 text-gold-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="number"
-                    placeholder="35"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full bg-black/50 border border-gold-900/35 focus:border-gold-500 focus:outline-none p-3 pl-9 rounded-lg text-sm text-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {error && (
-              <p className="text-red-500 text-xs font-mono text-center">{error}</p>
-            )}
-            
-            {uploadSuccess && (
-              <p className="text-green-500 text-xs font-mono text-center">{uploadSuccess}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={uploading}
-              className={`w-full py-3.5 bg-gold-500 text-black font-display font-black tracking-[0.15em] uppercase rounded-lg transition-all ${
-                uploading 
-                  ? "opacity-50 cursor-wait" 
-                  : "hover:bg-gold-400 transform hover:scale-[1.01] cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.1)]"
-              }`}
+      <main className="max-w-7xl mx-auto px-6 mt-10">
+        <AnimatePresence mode="wait">
+          {activeTab === "gallery" ? (
+            /* GALLERY VIEW TAB */
+            <motion.div
+              key="gallery-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-10"
             >
-              {uploading ? "SUBIENDO..." : "PUBLICAR CORTE"}
-            </button>
-          </form>
-        </section>
+              {/* LEFT COLUMN: Upload Panel */}
+              <section className="lg:col-span-5 bg-gradient-to-b from-[#111] to-[#0a0a0a] border border-gold-900/30 p-6 rounded-2xl shadow-xl h-fit">
+                <h3 className="font-display text-lg font-black text-[#d4af37] uppercase tracking-wider mb-6 flex items-center gap-2">
+                  <UploadCloud className="w-5 h-5" />
+                  Publicar Nuevo Corte
+                </h3>
 
-        {/* RIGHT COLUMN: Inventory (7 cols) */}
-        <section className="lg:col-span-7 bg-[#0b0b0b] border border-gold-900/10 rounded-2xl shadow-xl p-6 flex flex-col">
-          <h3 className="font-display text-lg font-black text-[#d4af37] uppercase tracking-wider mb-6 flex items-center gap-2">
-            <Scissors className="w-5 h-5" />
-            Catálogo & Precios Activos
-          </h3>
-
-          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-            {loading ? (
-              <div className="text-center py-20 font-mono text-zinc-500 animate-pulse text-xs uppercase tracking-widest">
-                Cargando catálogo...
-              </div>
-            ) : haircuts.length === 0 ? (
-              <div className="text-center py-20 text-zinc-600 text-sm">
-                No hay fotos en el catálogo.
-              </div>
-            ) : (
-              haircuts.map((cut) => {
-                const isEditing = editingId === cut.id;
-                const isDeleting = deletingId === cut.id;
-                
-                return (
-                  <div 
-                    key={cut.id}
-                    className="p-4 bg-black/60 border border-gold-900/20 rounded-xl flex gap-4 items-center justify-between"
-                  >
-                    <div className="flex gap-4 items-center flex-grow">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden border border-gold-900/20 bg-zinc-950 flex-shrink-0">
-                        <img 
-                          src={cut.imageUrl} 
-                          alt={cut.name} 
-                          className="w-full h-full object-cover" 
-                        />
+                <form onSubmit={handleUpload} className="space-y-5">
+                  <div className="relative border-2 border-dashed border-gold-900/30 hover:border-gold-500/50 rounded-xl overflow-hidden aspect-[4/3] flex flex-col items-center justify-center bg-black/40 transition-colors group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    />
+                    
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt="Vista previa"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-center p-6 pointer-events-none">
+                        <UploadCloud className="w-10 h-10 text-gold-600 mx-auto mb-3 group-hover:text-gold-400 transition-colors" />
+                        <span className="text-xs text-stone-300 block font-semibold mb-1">
+                          Seleccionar Foto
+                        </span>
+                        <span className="text-[10px] text-zinc-500 block font-mono">
+                          PNG, JPG o WEBP desde macOS
+                        </span>
                       </div>
-                      
-                      <div className="flex-grow min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[8px] font-mono tracking-widest text-[#d4af37] uppercase bg-[#1a1412] px-1.5 py-0.5 border border-gold-900/40 rounded-sm">
-                            {cut.category}
-                          </span>
-                          <span className="text-[8px] font-mono text-zinc-500 uppercase">
-                            {cut.id.startsWith("storage-") ? "Subido" : "Sistema"}
-                          </span>
-                        </div>
-                        <h4 className="font-display font-bold text-white text-sm tracking-wide mt-2">
-                          {cut.id.startsWith("storage-") ? "Foto Personalizada" : cut.name}
-                        </h4>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-mono tracking-widest text-zinc-400 block mb-1.5 uppercase">
+                        Categoría / Colección
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(["men", "women", "children"] as const).map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setCategory(cat)}
+                            className={`py-2 text-[10px] font-mono tracking-wider uppercase rounded border font-bold transition-all cursor-pointer ${
+                              category === cat
+                                ? "bg-gold-500 text-black border-gold-400 font-bold"
+                                : "bg-black/50 text-zinc-400 border-gold-900/20 hover:text-white"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3.5 flex-shrink-0 ml-2">
-                      <div className="flex items-center gap-1.5">
-                        {isEditing ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-[#d4af37] font-bold text-sm">$</span>
-                            <input
-                              type="number"
-                              value={editPrice}
-                              onChange={(e) => setEditPrice(e.target.value)}
-                              className="w-16 bg-zinc-900 border border-gold-900/40 p-2 rounded text-xs text-center text-white focus:outline-none focus:border-gold-500"
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-[#d4af37] font-display font-black text-base">
-                            ${cut.price}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isEditing ? (
-                          <>
-                            <button
-                              onClick={() => saveEdit(cut)}
-                              disabled={savingId === cut.id}
-                              className="p-2 bg-gold-950/20 hover:bg-gold-500 border border-gold-800 hover:border-gold-400 text-gold-300 hover:text-black rounded-lg transition-all cursor-pointer"
-                              title="Guardar"
-                            >
-                              {savingId === cut.id ? (
-                                <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Check className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setEditingId(null)}
-                              className="p-2 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 text-stone-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                              title="Cancelar"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => startEdit(cut)}
-                              className="p-2 bg-gold-950/10 hover:bg-gold-950/30 border border-gold-900/40 hover:border-[#d4af37]/60 text-gold-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                              title="Editar Precio"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(cut)}
-                              disabled={isDeleting}
-                              className="p-2 bg-red-950/10 hover:bg-red-650 border border-red-900/40 hover:border-red-500 text-red-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                              title="Eliminar de la Galería"
-                            >
-                              {isDeleting ? (
-                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Trash2 className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          </>
-                        )}
+                    <div>
+                      <label className="text-[10px] font-mono tracking-widest text-zinc-400 block mb-1 uppercase">
+                        Precio (USD)
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="w-4 h-4 text-gold-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="number"
+                          placeholder="35"
+                          value={price}
+                          onChange={(e) => setPrice(e.target.value)}
+                          className="w-full bg-black/50 border border-gold-900/35 focus:border-gold-500 focus:outline-none p-3 pl-9 rounded-lg text-sm text-white"
+                        />
                       </div>
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </section>
 
+                  {error && (
+                    <p className="text-red-500 text-xs font-mono text-center">{error}</p>
+                  )}
+                  
+                  {uploadSuccess && (
+                    <p className="text-green-500 text-xs font-mono text-center">{uploadSuccess}</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className={`w-full py-3.5 bg-gold-500 text-black font-display font-black tracking-[0.15em] uppercase rounded-lg transition-all ${
+                      uploading 
+                        ? "opacity-50 cursor-wait" 
+                        : "hover:bg-gold-400 transform hover:scale-[1.01] cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.1)]"
+                    }`}
+                  >
+                    {uploading ? "SUBIENDO..." : "PUBLICAR CORTE"}
+                  </button>
+                </form>
+              </section>
+
+              {/* RIGHT COLUMN: Inventory Grid */}
+              <section className="lg:col-span-7 bg-[#0b0b0b] border border-gold-900/10 rounded-2xl shadow-xl p-6 flex flex-col">
+                <h3 className="font-display text-lg font-black text-[#d4af37] uppercase tracking-wider mb-6 flex items-center gap-2">
+                  <Scissors className="w-5 h-5" />
+                  Catálogo & Precios Activos
+                </h3>
+
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                  {loadingCuts ? (
+                    <div className="text-center py-20 font-mono text-zinc-500 animate-pulse text-xs uppercase tracking-widest">
+                      Cargando catálogo...
+                    </div>
+                  ) : haircuts.length === 0 ? (
+                    <div className="text-center py-20 text-zinc-600 text-sm">
+                      No hay fotos en el catálogo.
+                    </div>
+                  ) : (
+                    haircuts.map((cut) => {
+                      const isEditing = editingId === cut.id;
+                      const isDeleting = deletingId === cut.id;
+                      
+                      return (
+                        <div 
+                          key={cut.id}
+                          className="p-4 bg-black/60 border border-gold-900/20 rounded-xl flex gap-4 items-center justify-between animate-fadeIn"
+                        >
+                          <div className="flex gap-4 items-center flex-grow">
+                            <div className="w-16 h-16 rounded-lg overflow-hidden border border-gold-900/20 bg-zinc-950 flex-shrink-0">
+                              <img 
+                                src={cut.imageUrl} 
+                                alt={cut.name} 
+                                className="w-full h-full object-cover" 
+                              />
+                            </div>
+                            
+                            <div className="flex-grow min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[8px] font-mono tracking-widest text-[#d4af37] uppercase bg-[#1a1412] px-1.5 py-0.5 border border-gold-900/40 rounded-sm">
+                                  {cut.category}
+                                </span>
+                                <span className="text-[8px] font-mono text-zinc-500 uppercase">
+                                  {cut.id.startsWith("storage-") ? "Subido" : "Sistema"}
+                                </span>
+                              </div>
+                              <h4 className="font-display font-bold text-white text-sm tracking-wide mt-2">
+                                {cut.id.startsWith("storage-") ? "Foto Personalizada" : cut.name}
+                              </h4>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3.5 flex-shrink-0 ml-2">
+                            <div className="flex items-center gap-1.5">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[#d4af37] font-bold text-sm">$</span>
+                                  <input
+                                    type="number"
+                                    value={editPrice}
+                                    onChange={(e) => setEditPrice(e.target.value)}
+                                    className="w-16 bg-zinc-900 border border-gold-900/40 p-2 rounded text-xs text-center text-white focus:outline-none focus:border-gold-500"
+                                  />
+                                </div>
+                              ) : (
+                                <span className="text-[#d4af37] font-display font-black text-base">
+                                  ${cut.price}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {isEditing ? (
+                                <>
+                                  <button
+                                    onClick={() => saveEdit(cut)}
+                                    disabled={savingId === cut.id}
+                                    className="p-2 bg-gold-950/20 hover:bg-gold-500 border border-gold-800 hover:border-gold-400 text-gold-300 hover:text-black rounded-lg transition-all cursor-pointer"
+                                    title="Guardar"
+                                  >
+                                    {savingId === cut.id ? (
+                                      <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Check className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingId(null)}
+                                    className="p-2 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 text-stone-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                                    title="Cancelar"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => startEdit(cut)}
+                                    className="p-2 bg-gold-950/10 hover:bg-gold-950/30 border border-gold-900/40 hover:border-[#d4af37]/60 text-gold-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                                    title="Editar Precio"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(cut)}
+                                    disabled={isDeleting}
+                                    className="p-2 bg-red-950/10 hover:bg-red-650 border border-red-900/40 hover:border-red-500 text-red-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                                    title="Eliminar de la Galería"
+                                  >
+                                    {isDeleting ? (
+                                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
+            </motion.div>
+          ) : (
+            /* PRICE LIST EDIT VIEW */
+            <motion.div
+              key="prices-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-[#0b0b0b] border border-gold-900/15 p-6 rounded-2xl shadow-xl max-w-4xl mx-auto"
+            >
+              <h3 className="font-display text-lg font-black text-[#d4af37] uppercase tracking-wider mb-6 flex items-center gap-2">
+                <ClipboardList className="w-5 h-5" />
+                Edición de Menú de Precios
+              </h3>
+
+              {loadingPrices ? (
+                <div className="text-center py-20 font-mono text-zinc-500 animate-pulse text-xs uppercase tracking-widest">
+                  Cargando menú de precios...
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {Object.entries(groupedPriceItems()).map(([catKey, items]) => {
+                    if (items.length === 0) return null;
+                    
+                    return (
+                      <div key={catKey} className="space-y-4">
+                        <h4 className="font-display text-[#d4af37] font-bold text-sm border-b border-gold-900/10 pb-1.5 uppercase tracking-widest">
+                          {categoriesMap[catKey] || catKey}
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {items.map((item) => {
+                            const isEditingItem = editingPriceItemId === item.id;
+                            const isSavingItem = savingPriceItemId === item.id;
+                            
+                            return (
+                              <div 
+                                key={item.id}
+                                className="p-3.5 bg-black/40 border border-gold-950/20 rounded-lg flex items-center justify-between gap-4"
+                              >
+                                <span className="text-xs font-semibold text-stone-300 truncate">
+                                  {item.name}
+                                </span>
+                                
+                                <div className="flex items-center gap-3.5 flex-shrink-0">
+                                  {isEditingItem ? (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[#d4af37] font-bold text-xs">$</span>
+                                      <input
+                                        type="number"
+                                        value={editPriceItemPrice}
+                                        onChange={(e) => setEditPriceItemPrice(e.target.value)}
+                                        className="w-14 bg-zinc-900 border border-gold-900/40 p-1.5 rounded text-xs text-center text-white focus:outline-none"
+                                        autoFocus
+                                      />
+                                    </div>
+                                  ) : (
+                                    <span className="text-[#d4af37] font-mono text-xs font-bold">
+                                      ${item.price}
+                                    </span>
+                                  )}
+
+                                  <div className="flex items-center gap-1.5">
+                                    {isEditingItem ? (
+                                      <>
+                                        <button
+                                          onClick={() => savePriceItemEdit(item)}
+                                          disabled={isSavingItem}
+                                          className="p-1.5 bg-gold-950/20 hover:bg-gold-500 border border-gold-800 hover:border-gold-400 text-gold-300 hover:text-black rounded transition-all cursor-pointer"
+                                          title="Guardar"
+                                        >
+                                          {isSavingItem ? (
+                                            <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                                          ) : (
+                                            <Check className="w-3 h-3" />
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => setEditingPriceItemId(null)}
+                                          className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-stone-400 hover:text-white rounded transition-all cursor-pointer"
+                                          title="Cancelar"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        onClick={() => startPriceItemEdit(item)}
+                                        className="p-1.5 bg-gold-950/10 hover:bg-gold-950/30 border border-gold-900/40 hover:border-gold-400 text-gold-400 hover:text-white rounded transition-all cursor-pointer"
+                                        title="Editar precio de servicio"
+                                      >
+                                        <Edit3 className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

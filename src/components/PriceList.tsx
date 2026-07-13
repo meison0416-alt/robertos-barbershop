@@ -1,7 +1,46 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Scissors } from "lucide-react";
+import { getPriceList } from "../lib/db";
+import { PriceItem } from "../types";
 
 export const PriceList: React.FC = () => {
+  const [prices, setPrices] = useState<PriceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const list = await getPriceList();
+        setPrices(list);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPrices();
+  }, []);
+
+  const getItemsByCategory = (category: string) => {
+    return prices
+      .filter((p) => p.category === category)
+      .sort((a, b) => a.order - b.order);
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-20 font-mono text-zinc-500 animate-pulse text-xs uppercase tracking-widest">
+        Cargando lista de precios...
+      </div>
+    );
+  }
+
+  const womenItems = getItemsByCategory("women");
+  const menItems = getItemsByCategory("men");
+  const teenItems = getItemsByCategory("teenagers");
+  const boysItems = getItemsByCategory("boys");
+  const extraItems = getItemsByCategory("extras");
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
       {/* Main Categories Grid */}
@@ -10,127 +49,97 @@ export const PriceList: React.FC = () => {
         {/* Columna 1: Damas y Hombres */}
         <div className="space-y-6">
           {/* Damas / Women */}
-          <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl border-l-4 border-l-[#d4af37] shadow-xl">
-            <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
-              <span className="mr-2 text-2xl">👩</span> Damas / Women
-            </h2>
-            <div className="space-y-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Corte de Dama / Women's Cut</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$25</span>
+          {womenItems.length > 0 && (
+            <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl border-l-4 border-l-[#d4af37] shadow-xl">
+              <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
+                <span className="mr-2 text-2xl">👩</span> Damas / Women
+              </h2>
+              <div className="space-y-2">
+                {womenItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-baseline">
+                    <span className="text-sm font-medium text-stone-300">{item.name}</span>
+                    <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
+                    <span className="text-[#d4af37] font-bold text-base">${item.price}</span>
+                  </div>
+                ))}
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Hombre / Man */}
-          <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl shadow-xl border-t-4 border-t-[#795548]">
-            <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
-              <span className="mr-2 text-2xl">🧔</span> Hombre / Man
-            </h2>
-            <div className="space-y-2.5">
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Corte Regular / Regular Cut</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$25</span>
+          {menItems.length > 0 && (
+            <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl shadow-xl border-t-4 border-t-[#795548]">
+              <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
+                <span className="mr-2 text-2xl">🧔</span> Hombre / Man
+              </h2>
+              <div className="space-y-2.5">
+                {menItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-baseline">
+                    <span className="text-sm font-medium text-stone-300">{item.name}</span>
+                    <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
+                    <span className="text-[#d4af37] font-bold text-base">${item.price}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Corte Fade</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$30</span>
-              </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Corte Fade + Barba / Beard</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$35</span>
-              </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Line up & Beard</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$20</span>
-              </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Color de Barba / Beard Color</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$35</span>
-              </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Diseños / Designs</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$20</span>
-              </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Adulto Mayor / Senior Citizen</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$25</span>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
         </div>
 
         {/* Columna 2: Adolescentes, Niños y Extras */}
         <div className="space-y-6">
           {/* Adolescentes / Teenagers */}
-          <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl shadow-xl">
-            <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
-              <span className="mr-2 text-2xl">🧑</span> Adolescentes / Teenagers
-            </h2>
-            <div className="space-y-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Regular</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$25</span>
+          {teenItems.length > 0 && (
+            <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl shadow-xl">
+              <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
+                <span className="mr-2 text-2xl">🧑</span> Adolescentes / Teenagers
+              </h2>
+              <div className="space-y-2">
+                {teenItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-baseline">
+                    <span className="text-sm font-medium text-stone-300">{item.name}</span>
+                    <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
+                    <span className="text-[#d4af37] font-bold text-base">${item.price}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Fade</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$30</span>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Niños / Boys */}
-          <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl border-l-4 border-l-[#d4af37] shadow-xl">
-            <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
-              <span className="mr-2 text-2xl">🧒</span> Niños / Boys
-            </h2>
-            <div className="space-y-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Corte Regular / Regular Cut</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$20</span>
+          {boysItems.length > 0 && (
+            <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl border-l-4 border-l-[#d4af37] shadow-xl">
+              <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
+                <span className="mr-2 text-2xl">🧒</span> Niños / Boys
+              </h2>
+              <div className="space-y-2">
+                {boysItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-baseline">
+                    <span className="text-sm font-medium text-stone-300">{item.name}</span>
+                    <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
+                    <span className="text-[#d4af37] font-bold text-base">${item.price}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Corte Fade</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$25</span>
-              </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Corte Fade + Diseño / Design</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$30</span>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Extras (Debajo de Niños) */}
-          <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl border-t-2 border-t-[#795548] shadow-xl">
-            <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
-              <span className="mr-2 text-2xl">✨</span> Extras
-            </h2>
-            <div className="space-y-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Cejas / Eyebrows</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$10</span>
+          {extraItems.length > 0 && (
+            <section className="bg-gradient-to-br from-[#1a1412] to-[#0f0f0f] border border-[#5d4037] hover:border-[#d4af37] hover:shadow-[0_10px_20px_rgba(78,52,46,0.3)] transition-all duration-300 p-5 rounded-xl border-t-2 border-t-[#795548] shadow-xl">
+              <h2 className="font-display text-xl text-[#d4af37] mb-4 flex items-center tracking-wider font-bold">
+                <span className="mr-2 text-2xl">✨</span> Extras
+              </h2>
+              <div className="space-y-2">
+                {extraItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-baseline">
+                    <span className="text-sm font-medium text-stone-300">{item.name}</span>
+                    <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
+                    <span className="text-[#d4af37] font-bold text-base">${item.price}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-medium text-stone-300">Toalla Caliente / Hot Towel</span>
-                <div className="flex-grow border-b border-dotted border-[#8d6e63] mx-2.5 opacity-60"></div>
-                <span className="text-[#d4af37] font-bold text-base">$10</span>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
         </div>
 
         {/* Columna 3: Espacio decorativo o Logotipo */}
