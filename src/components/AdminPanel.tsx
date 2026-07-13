@@ -22,7 +22,7 @@ import {
   ClipboardList,
   Image as ImageIcon
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface AdminPanelProps {
   onBack: () => void;
