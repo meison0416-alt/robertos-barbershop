@@ -481,7 +481,7 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                   Catálogo & Precios Activos
                 </h3>
 
-                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                   {loadingCuts ? (
                     <div className="text-center py-20 font-mono text-zinc-500 animate-pulse text-xs uppercase tracking-widest">
                       Cargando catálogo...
@@ -491,109 +491,122 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                       No hay fotos en el catálogo.
                     </div>
                   ) : (
-                    haircuts.map((cut) => {
-                      const isEditing = editingId === cut.id;
-                      const isDeleting = deletingId === cut.id;
-                      
-                      return (
-                        <div 
-                          key={cut.id}
-                          className="p-4 bg-black/60 border border-gold-900/20 rounded-xl flex gap-4 items-center justify-between animate-fadeIn"
-                        >
-                          <div className="flex gap-4 items-center flex-grow">
-                            <div className="w-16 h-16 rounded-lg overflow-hidden border border-gold-900/20 bg-zinc-950 flex-shrink-0">
-                              <img 
-                                src={cut.imageUrl} 
-                                alt={cut.name} 
-                                className="w-full h-full object-cover" 
-                              />
-                            </div>
-                            
-                            <div className="flex-grow min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[8px] font-mono tracking-widest text-[#d4af37] uppercase bg-[#1a1412] px-1.5 py-0.5 border border-gold-900/40 rounded-sm">
-                                  {cut.category}
-                                </span>
-                                <span className="text-[8px] font-mono text-zinc-500 uppercase">
-                                  {cut.id.startsWith("storage-") ? "Subido" : "Sistema"}
-                                </span>
-                              </div>
-                              <h4 className="font-display font-bold text-white text-sm tracking-wide mt-2">
-                                {cut.id.startsWith("storage-") ? "Foto Personalizada" : cut.name}
-                              </h4>
-                            </div>
-                          </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {(["men", "women", "children"] as const).map((cat) => {
+                        const catCuts = haircuts.filter(c => c.category === cat);
+                        return (
+                          <div key={cat} className="space-y-3">
+                            <h4 className="font-display text-[#d4af37] font-bold text-xs border-b border-gold-900/10 pb-1.5 uppercase tracking-widest text-center bg-black/40 py-2 rounded-t-lg">
+                              {cat === "men" ? "Hombres" : cat === "women" ? "Damas" : "Niños"}
+                            </h4>
+                            {catCuts.length === 0 ? (
+                              <p className="text-[10px] text-zinc-600 text-center italic uppercase tracking-wider py-4">Vacío</p>
+                            ) : (
+                              catCuts.map((cut) => {
+                                const isEditing = editingId === cut.id;
+                                const isDeleting = deletingId === cut.id;
+                                
+                                return (
+                                  <div 
+                                    key={cut.id}
+                                    className="p-3 bg-black/60 border border-gold-900/20 rounded-xl flex flex-col gap-3 animate-fadeIn"
+                                  >
+                                    <div className="flex gap-3 items-center">
+                                      <div className="w-12 h-12 rounded-lg overflow-hidden border border-gold-900/20 bg-zinc-950 flex-shrink-0">
+                                        <img 
+                                          src={cut.imageUrl} 
+                                          alt={cut.name} 
+                                          className="w-full h-full object-cover" 
+                                        />
+                                      </div>
+                                      
+                                      <div className="flex-grow min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-[7px] font-mono text-zinc-500 uppercase">
+                                            {cut.id.startsWith("storage-") ? "Subido" : "Sistema"}
+                                          </span>
+                                        </div>
+                                        <h4 className="font-display font-bold text-white text-[11px] tracking-wide mt-1 line-clamp-2 leading-tight">
+                                          {cut.id.startsWith("storage-") ? "Foto Personalizada" : cut.name}
+                                        </h4>
+                                      </div>
+                                    </div>
 
-                          <div className="flex items-center gap-3.5 flex-shrink-0 ml-2">
-                            <div className="flex items-center gap-1.5">
-                              {isEditing ? (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[#d4af37] font-bold text-sm">$</span>
-                                  <input
-                                    type="number"
-                                    value={editPrice}
-                                    onChange={(e) => setEditPrice(e.target.value)}
-                                    className="w-16 bg-zinc-900 border border-gold-900/40 p-2 rounded text-xs text-center text-white focus:outline-none focus:border-gold-500"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="text-[#d4af37] font-display font-black text-base">
-                                  ${cut.price}
-                                </span>
-                              )}
-                            </div>
+                                    <div className="flex items-center justify-between pt-2 border-t border-gold-900/10">
+                                      <div className="flex items-center">
+                                        {isEditing ? (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-[#d4af37] font-bold text-xs">$</span>
+                                            <input
+                                              type="number"
+                                              value={editPrice}
+                                              onChange={(e) => setEditPrice(e.target.value)}
+                                              className="w-12 bg-zinc-900 border border-gold-900/40 p-1 rounded text-xs text-center text-white focus:outline-none focus:border-gold-500"
+                                            />
+                                          </div>
+                                        ) : (
+                                          <span className="text-[#d4af37] font-display font-black text-sm">
+                                            ${cut.price}
+                                          </span>
+                                        )}
+                                      </div>
 
-                            <div className="flex items-center gap-2">
-                              {isEditing ? (
-                                <>
-                                  <button
-                                    onClick={() => saveEdit(cut)}
-                                    disabled={savingId === cut.id}
-                                    className="p-2 bg-gold-950/20 hover:bg-gold-500 border border-gold-800 hover:border-gold-400 text-gold-300 hover:text-black rounded-lg transition-all cursor-pointer"
-                                    title="Guardar"
-                                  >
-                                    {savingId === cut.id ? (
-                                      <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                      <Check className="w-3.5 h-3.5" />
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingId(null)}
-                                    className="p-2 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 text-stone-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                                    title="Cancelar"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => startEdit(cut)}
-                                    className="p-2 bg-gold-950/10 hover:bg-gold-950/30 border border-gold-900/40 hover:border-[#d4af37]/60 text-gold-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                                    title="Editar Precio"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(cut)}
-                                    disabled={isDeleting}
-                                    className="p-2 bg-red-950/10 hover:bg-red-650 border border-red-900/40 hover:border-red-500 text-red-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                                    title="Eliminar de la Galería"
-                                  >
-                                    {isDeleting ? (
-                                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    )}
-                                  </button>
-                                </>
-                              )}
-                            </div>
+                                      <div className="flex items-center gap-1.5">
+                                        {isEditing ? (
+                                          <>
+                                            <button
+                                              onClick={() => saveEdit(cut)}
+                                              disabled={savingId === cut.id}
+                                              className="p-1.5 bg-gold-950/20 hover:bg-gold-500 border border-gold-800 hover:border-gold-400 text-gold-300 hover:text-black rounded transition-all cursor-pointer"
+                                              title="Guardar"
+                                            >
+                                              {savingId === cut.id ? (
+                                                <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                                              ) : (
+                                                <Check className="w-3 h-3" />
+                                              )}
+                                            </button>
+                                            <button
+                                              onClick={() => setEditingId(null)}
+                                              className="p-1.5 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 text-stone-400 hover:text-white rounded transition-all cursor-pointer"
+                                              title="Cancelar"
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <button
+                                              onClick={() => startEdit(cut)}
+                                              className="p-1.5 bg-gold-950/10 hover:bg-gold-950/30 border border-gold-900/40 hover:border-[#d4af37]/60 text-gold-400 hover:text-white rounded transition-all cursor-pointer"
+                                              title="Editar Precio"
+                                            >
+                                              <Edit3 className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                              onClick={() => handleDelete(cut)}
+                                              disabled={isDeleting}
+                                              className="p-1.5 bg-red-950/10 hover:bg-red-650 border border-red-900/40 hover:border-red-500 text-red-400 hover:text-white rounded transition-all cursor-pointer"
+                                              title="Eliminar de la Galería"
+                                            >
+                                              {isDeleting ? (
+                                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                              ) : (
+                                                <Trash2 className="w-3 h-3" />
+                                              )}
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               </section>
@@ -617,17 +630,17 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                   Cargando menú de precios...
                 </div>
               ) : (
-                <div className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {Object.entries(groupedPriceItems()).map(([catKey, items]) => {
                     if (items.length === 0) return null;
                     
                     return (
-                      <div key={catKey} className="space-y-4">
-                        <h4 className="font-display text-[#d4af37] font-bold text-sm border-b border-gold-900/10 pb-1.5 uppercase tracking-widest">
+                      <div key={catKey} className="space-y-3">
+                        <h4 className="font-display text-[#d4af37] font-bold text-xs border-b border-gold-900/10 pb-1.5 uppercase tracking-widest text-center bg-black/40 py-2 rounded-t-lg">
                           {categoriesMap[catKey] || catKey}
                         </h4>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
                           {items.map((item) => {
                             const isEditingItem = editingPriceItemId === item.id;
                             const isSavingItem = savingPriceItemId === item.id;
