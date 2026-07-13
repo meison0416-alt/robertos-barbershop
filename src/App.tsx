@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import HaircutCard from "./components/HaircutCard";
 import HaircutDetailsModal from "./components/HaircutDetailsModal";
 import PriceList from "./components/PriceList";
+import AdminPanel from "./components/AdminPanel";
 import { getHaircuts, INITIAL_HAIRCUTS } from "./lib/db";
 import { Haircut } from "./types";
 import { ShieldCheck, HelpCircle, Sparkles } from "lucide-react";
@@ -11,6 +12,7 @@ import { motion, AnimatePresence } from "motion/react";
 export default function App() {
   const [haircuts, setHaircuts] = useState<Haircut[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>("men");
+  const [isAdminView, setIsAdminView] = useState(false);
   
   // Select overlays
   const [selectedHaircut, setSelectedHaircut] = useState<Haircut | null>(null);
@@ -81,11 +83,20 @@ export default function App() {
     }
   };
 
+  if (isAdminView) {
+    return (
+      <AdminPanel
+        onBack={() => setIsAdminView(false)}
+        onRefreshGallery={fetchState}
+      />
+    );
+  }
+
   return (
     <div id="app-root" className="min-h-screen bg-[#070707] flex flex-col justify-between selection:bg-gold-500 selection:text-black text-[#e5e5e5]">
       
       {/* Header element */}
-      <Header />
+      <Header onAdminClick={() => setIsAdminView(true)} />
 
       {/* Dynamic Toast Notifications */}
       <AnimatePresence>

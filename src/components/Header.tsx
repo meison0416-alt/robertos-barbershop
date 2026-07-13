@@ -1,4 +1,8 @@
-export default function Header() {
+interface HeaderProps {
+  onAdminClick?: () => void;
+}
+
+export default function Header({ onAdminClick }: HeaderProps) {
   return (
     <header id="main-header" className="sticky top-0 z-50 bg-[#070707]/90 backdrop-blur-md border-b border-gold-900/40 px-6 py-4 shadow-xl">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -14,6 +18,15 @@ export default function Header() {
           </div>
         </div>
 
+        {onAdminClick && (
+          <button
+            id="btn-barber-portal"
+            onClick={onAdminClick}
+            className="flex items-center gap-1.5 px-4 py-2 border border-gold-900/40 hover:border-gold-400 bg-[#0e0e0e] hover:bg-gold-950/20 text-xs font-mono tracking-wider text-gold-400 hover:text-white rounded-lg transition-all cursor-pointer"
+          >
+            Portal Barber
+          </button>
+        )}
       </div>
     </header>
   );

@@ -10,7 +10,7 @@ import {
   orderBy 
 } from "firebase/firestore";
 import { db, isFirebaseConfigured, handleFirestoreError, OperationType, storage } from "./firebase";
-import { ref, listAll, getDownloadURL } from "firebase/storage";
+import { ref, listAll, getDownloadURL, uploadBytes } from "firebase/storage";
 import { Haircut, Booking, Review, Barber } from "../types";
 
 // INITIAL PREMIUM STYLES WITH A BLACK & GOLD LUXURY THEME
@@ -223,7 +223,7 @@ async function getStorageHaircutsForCategory(category: string): Promise<Haircut[
   }
 }
 
-// 1. Get Haircuts (Reads Firestore if online, otherwise local, and merges Firebase Storage files)
+// 1. Get Haircuts (Reads Firestore if online, otherwise local, and merges unique Firebase Storage files)
 export async function getHaircuts(): Promise<Haircut[]> {
   let firestoreCuts: Haircut[] = [];
   if (isFirebaseConfigured && db) {
@@ -257,7 +257,16 @@ export async function getHaircuts(): Promise<Haircut[]> {
         getStorageHaircutsForCategory("children")
       ]);
       
-      const combined = [...firestoreCuts, ...menStorage, ...womenStorage, ...childrenStorage];
+      const allStorageCuts = [...menStorage, ...womenStorage, ...childrenStorage];
+      
+      // Filter out storage cuts whose imageUrl or filename matches a document in Firestore
+      // (This avoids duplicate items since we save custom-priced uploads in Firestore)
+      const firestoreUrls = new Set(firestoreCuts.map(c => c.imageUrl.split("?")[0]));
+      const uniqueStorageCuts = allStorageCuts.filter(
+        sc => !firestoreUrls.has(sc.imageUrl.split("?")[0])
+      );
+      
+      const combined = [...firestoreCuts, ...uniqueStorageCuts];
       return combined.length > 0 ? combined : INITIAL_HAIRCUTS;
     } catch (e) {
       console.error("Error fetching storage haircuts:", e);
@@ -265,6 +274,40 @@ export async function getHaircuts(): Promise<Haircut[]> {
   }
 
   return firestoreCuts.length > 0 ? firestoreCuts : INITIAL_HAIRCUTS;
+}
+
+// 1b. Upload image to Firebase Storage
+export async function uploadHaircutImage(file: File, category: string): Promise<string> {
+  if (!isFirebaseConfigured || !storage) {
+    throw new Error("Firebase Storage is not configured.");
+  }
+  const cleanFilename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+  const fileRef = ref(storage, `${category}/${cleanFilename}`);
+  await uploadBytes(fileRef, file);
+  return await getDownloadURL(fileRef);
+}
+
+// 1c. Add or update haircut details in Firestore
+export async function addOrUpdateHaircut(haircut: Haircut): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    const path = `haircuts/${haircut.id}`;
+    try {
+      await setDoc(doc(db, "haircuts", haircut.id), haircut);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  } else {
+    // Local storage fallback
+    const stored = localStorage.getItem("aureum_haircuts");
+    const cuts: Haircut[] = stored ? JSON.parse(stored) : [...INITIAL_HAIRCUTS];
+    const index = cuts.findIndex(c => c.id === haircut.id);
+    if (index !== -1) {
+      cuts[index] = haircut;
+    } else {
+      cuts.push(haircut);
+    }
+    localStorage.setItem("aureum_haircuts", JSON.stringify(cuts));
+  }
 }
 
 // Increment likes (Client feature)
