@@ -26,14 +26,10 @@ export default function App() {
     setLoading(true);
     try {
       const uCuts = await getHaircuts();
-      if (uCuts && uCuts.length > 0) {
-        setHaircuts(uCuts);
-      } else {
-        setHaircuts(INITIAL_HAIRCUTS);
-      }
+      setHaircuts(uCuts);
     } catch (e) {
       console.error(e);
-      setHaircuts(INITIAL_HAIRCUTS);
+      setHaircuts([]);
     } finally {
       setLoading(false);
     }
