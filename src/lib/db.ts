@@ -173,21 +173,7 @@ export const INITIAL_BARBERS: Barber[] = [
 
 // --- DATABASE FETCHERS & OPERATORS WITH SYNC AGENTS ---
 
-// Initialize Haircuts in Firestore if empty
-async function ensureHaircutsExist() {
-  if (!isFirebaseConfigured || !db) return;
-  try {
-    const querySnapshot = await getDocs(collection(db, "haircuts"));
-    if (querySnapshot.empty) {
-      console.log("Firestore haircuts database is empty. Seeding initial catalog...");
-      for (const cut of INITIAL_HAIRCUTS) {
-        await setDoc(doc(db, "haircuts", cut.id), cut);
-      }
-    }
-  } catch (error) {
-    console.error("Error checking or seeding haircuts: ", error);
-  }
-}
+// (Seeding logic removed to allow the gallery to be completely empty if all pictures are deleted)
 
 async function getStorageHaircutsForCategory(category: string): Promise<Haircut[]> {
   if (!isFirebaseConfigured || !storage) return [];
@@ -230,7 +216,6 @@ export async function getHaircuts(): Promise<Haircut[]> {
   if (isFirebaseConfigured && db) {
     const path = "haircuts";
     try {
-      await ensureHaircutsExist();
       const collRef = collection(db, path);
       const querySnapshot = await getDocs(collRef);
       querySnapshot.forEach((docSnap) => {
@@ -268,13 +253,13 @@ export async function getHaircuts(): Promise<Haircut[]> {
       );
       
       const combined = [...firestoreCuts, ...uniqueStorageCuts];
-      return combined.length > 0 ? combined : INITIAL_HAIRCUTS;
+      return combined;
     } catch (e) {
       console.error("Error fetching storage haircuts:", e);
     }
   }
 
-  return firestoreCuts.length > 0 ? firestoreCuts : INITIAL_HAIRCUTS;
+  return firestoreCuts;
 }
 
 // 1b. Upload image to Firebase Storage
@@ -507,33 +492,19 @@ export const INITIAL_PRICES: PriceItem[] = [
   { id: "extra_hottowel", category: "extras", name: "Toalla Caliente / Hot Towel", price: 10, order: 2 }
 ];
 
-async function ensurePricesExist() {
-  if (!isFirebaseConfigured || !db) return;
-  try {
-    const querySnapshot = await getDocs(collection(db, "priceList"));
-    if (querySnapshot.empty) {
-      console.log("Firestore price list database is empty. Seeding initial price items...");
-      for (const item of INITIAL_PRICES) {
-        await setDoc(doc(db, "priceList", item.id), item);
-      }
-    }
-  } catch (error) {
-    console.error("Error checking or seeding price list: ", error);
-  }
-}
+// (Seeding logic removed to allow the price list to be completely empty if all prices are deleted)
 
 export async function getPriceList(): Promise<PriceItem[]> {
   if (isFirebaseConfigured && db) {
     const path = "priceList";
     try {
-      await ensurePricesExist();
       const collRef = collection(db, path);
       const querySnapshot = await getDocs(collRef);
       const list: PriceItem[] = [];
       querySnapshot.forEach((docSnap) => {
         list.push({ id: docSnap.id, ...docSnap.data() } as PriceItem);
       });
-      return list.length > 0 ? list : INITIAL_PRICES;
+      return list;
     } catch (error) {
       console.warn("Failed to fetch price list from Firestore:", error);
       return INITIAL_PRICES;
