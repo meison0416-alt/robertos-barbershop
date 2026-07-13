@@ -51,6 +51,7 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
   const [editPrice, setEditPrice] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [galleryFilter, setGalleryFilter] = useState<"all" | "men" | "women" | "children">("all");
 
   // Price List Menu Management States
   const [priceItems, setPriceItems] = useState<PriceItem[]>([]);
@@ -476,10 +477,28 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
 
               {/* RIGHT COLUMN: Inventory Grid */}
               <section className="lg:col-span-7 bg-[#0b0b0b] border border-gold-900/10 rounded-2xl shadow-xl p-6 flex flex-col">
-                <h3 className="font-display text-lg font-black text-[#d4af37] uppercase tracking-wider mb-6 flex items-center gap-2">
-                  <Scissors className="w-5 h-5" />
-                  Catálogo & Precios Activos
-                </h3>
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 gap-4">
+                  <h3 className="font-display text-lg font-black text-[#d4af37] uppercase tracking-wider flex items-center gap-2">
+                    <Scissors className="w-5 h-5" />
+                    Catálogo
+                  </h3>
+                  
+                  <div className="flex bg-black/60 border border-gold-900/20 rounded-lg p-1 overflow-x-auto custom-scrollbar">
+                    {(["all", "men", "women", "children"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setGalleryFilter(f)}
+                        className={`px-4 py-1.5 text-[10px] sm:text-xs font-mono uppercase tracking-widest rounded transition-all cursor-pointer whitespace-nowrap ${
+                          galleryFilter === f
+                            ? "bg-gold-500 text-black font-bold shadow-sm"
+                            : "text-zinc-400 hover:text-gold-400 hover:bg-white/5"
+                        }`}
+                      >
+                        {f === "all" ? "Todos" : f === "men" ? "Hombres" : f === "women" ? "Damas" : "Niños"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                   {loadingCuts ? (
@@ -491,8 +510,10 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                       No hay fotos en el catálogo.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {(["men", "women", "children"] as const).map((cat) => {
+                    <div className={`grid grid-cols-1 gap-4 ${galleryFilter === "all" ? "md:grid-cols-3" : "md:grid-cols-1"}`}>
+                      {(["men", "women", "children"] as const)
+                        .filter(cat => galleryFilter === "all" || galleryFilter === cat)
+                        .map((cat) => {
                         const catCuts = haircuts.filter(c => c.category === cat);
                         return (
                           <div key={cat} className="space-y-3">
@@ -502,7 +523,8 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                             {catCuts.length === 0 ? (
                               <p className="text-[10px] text-zinc-600 text-center italic uppercase tracking-wider py-4">Vacío</p>
                             ) : (
-                              catCuts.map((cut) => {
+                              <div className={galleryFilter === "all" ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"}>
+                                {catCuts.map((cut) => {
                                 const isEditing = editingId === cut.id;
                                 const isDeleting = deletingId === cut.id;
                                 
@@ -601,7 +623,8 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                                     </div>
                                   </div>
                                 );
-                              })
+                              })}
+                              </div>
                             )}
                           </div>
                         );
