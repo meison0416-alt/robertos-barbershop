@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Haircut } from "../types";
-import { getHaircuts, addOrUpdateHaircut, uploadHaircutImage } from "../lib/db";
+import { getHaircuts, addOrUpdateHaircut, uploadHaircutImage, deleteHaircut } from "../lib/db";
 import { 
   KeyRound, 
   UploadCloud, 
@@ -13,7 +13,7 @@ import {
   ArrowLeft,
   Sparkles
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -34,18 +34,15 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [category, setCategory] = useState<"men" | "women" | "children">("men");
-  const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState("");
 
-  // Edit states
+  // Edit/Delete states
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
   const [editPrice, setEditPrice] = useState("");
-  const [editDescription, setEditDescription] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Load Inventory
   const loadInventory = async () => {
@@ -90,8 +87,8 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
   // Handle Upload Submission
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !name || !price || !description) {
-      setError("Por favor completa todos los campos y selecciona una imagen.");
+    if (!file || !price) {
+      setError("Por favor selecciona una imagen e ingresa el precio.");
       return;
     }
 
@@ -106,13 +103,13 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
       // 2. Save in Firestore
       const newHaircut: Haircut = {
         id: `storage-${category}-${Date.now()}`,
-        name,
+        name: "Exclusive Style",
         category,
         imageUrl,
         price: parseFloat(price),
-        duration: 45, // default
-        description,
-        details: `Corte premium personalizado de la colección de ${category}.`,
+        duration: 45,
+        description: "Exclusive custom haircut from our portfolio.",
+        details: `Corte premium de la colección de ${category}.`,
         likes: 0
       };
 
@@ -123,9 +120,7 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
       // Reset form
       setFile(null);
       setPreviewUrl("");
-      setName("");
       setPrice("");
-      setDescription("");
 
       // Reload inventory & notify main gallery
       await loadInventory();
@@ -140,22 +135,18 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
   // Handle Editing start
   const startEdit = (cut: Haircut) => {
     setEditingId(cut.id);
-    setEditName(cut.name);
     setEditPrice(cut.price.toString());
-    setEditDescription(cut.description);
   };
 
   // Handle Saving edits
   const saveEdit = async (cut: Haircut) => {
-    if (!editName || !editPrice || !editDescription) return;
+    if (!editPrice) return;
 
     setSavingId(cut.id);
     try {
       const updatedCut: Haircut = {
         ...cut,
-        name: editName,
-        price: parseFloat(editPrice),
-        description: editDescription
+        price: parseFloat(editPrice)
       };
       
       await addOrUpdateHaircut(updatedCut);
@@ -166,6 +157,23 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
       console.error(err);
     } finally {
       setSavingId(null);
+    }
+  };
+
+  // Handle Deleting haircut
+  const handleDelete = async (cut: Haircut) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este corte de la galería?")) {
+      return;
+    }
+    setDeletingId(cut.id);
+    try {
+      await deleteHaircut(cut.id, cut.imageUrl, cut.category);
+      await loadInventory();
+      onRefreshGallery();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -314,19 +322,6 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
 
               <div>
                 <label className="text-[10px] font-mono tracking-widest text-zinc-400 block mb-1 uppercase">
-                  Nombre del Estilo
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej. Taper Low Fade"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-black/50 border border-gold-900/35 focus:border-gold-500 focus:outline-none p-3 rounded-lg text-sm text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-mono tracking-widest text-zinc-400 block mb-1 uppercase">
                   Precio (USD)
                 </label>
                 <div className="relative">
@@ -339,18 +334,6 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                     className="w-full bg-black/50 border border-gold-900/35 focus:border-gold-500 focus:outline-none p-3 pl-9 rounded-lg text-sm text-white"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-mono tracking-widest text-zinc-400 block mb-1 uppercase">
-                  Descripción Corta
-                </label>
-                <textarea
-                  placeholder="Describe las características visuales principales de este estilo..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-black/50 border border-gold-900/35 focus:border-gold-500 focus:outline-none p-3 rounded-lg text-sm text-white h-20 resize-none"
-                />
               </div>
             </div>
 
@@ -386,15 +369,16 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
             {loading ? (
               <div className="text-center py-20 font-mono text-zinc-500 animate-pulse text-xs uppercase tracking-widest">
-                Cargando inventario de cortes...
+                Cargando catálogo...
               </div>
             ) : haircuts.length === 0 ? (
               <div className="text-center py-20 text-zinc-600 text-sm">
-                No hay cortes en el inventario actual.
+                No hay fotos en el catálogo.
               </div>
             ) : (
               haircuts.map((cut) => {
                 const isEditing = editingId === cut.id;
+                const isDeleting = deletingId === cut.id;
                 
                 return (
                   <div 
@@ -416,53 +400,33 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                             {cut.category}
                           </span>
                           <span className="text-[8px] font-mono text-zinc-500 uppercase">
-                            {cut.id.startsWith("storage-") ? "subido por barber" : "sistema"}
+                            {cut.id.startsWith("storage-") ? "Subido" : "Sistema"}
                           </span>
                         </div>
-
-                        {isEditing ? (
-                          <div className="space-y-2 mt-2">
-                            <input
-                              type="text"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              className="w-full bg-zinc-900 border border-gold-900/40 p-2 rounded text-xs text-white"
-                            />
-                            <textarea
-                              value={editDescription}
-                              onChange={(e) => setEditDescription(e.target.value)}
-                              className="w-full bg-zinc-900 border border-gold-900/40 p-2 rounded text-xs text-stone-300 h-12 resize-none"
-                            />
-                          </div>
-                        ) : (
-                          <>
-                            <h4 className="font-display font-bold text-white text-sm tracking-wide mt-1.5 truncate">
-                              {cut.name}
-                            </h4>
-                            <p className="text-[11px] text-zinc-400 line-clamp-1 mt-0.5 font-sans leading-tight">
-                              {cut.description}
-                            </p>
-                          </>
-                        )}
+                        <h4 className="font-display font-bold text-white text-sm tracking-wide mt-2">
+                          {cut.id.startsWith("storage-") ? "Foto Personalizada" : cut.name}
+                        </h4>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-3 flex-shrink-0 ml-2">
-                      {isEditing ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[#d4af37] font-bold text-sm">$</span>
-                          <input
-                            type="number"
-                            value={editPrice}
-                            onChange={(e) => setEditPrice(e.target.value)}
-                            className="w-16 bg-zinc-900 border border-gold-900/40 p-2 rounded text-xs text-center text-white"
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-[#d4af37] font-display font-black text-base">
-                          ${cut.price}
-                        </span>
-                      )}
+                    <div className="flex items-center gap-3.5 flex-shrink-0 ml-2">
+                      <div className="flex items-center gap-1.5">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[#d4af37] font-bold text-sm">$</span>
+                            <input
+                              type="number"
+                              value={editPrice}
+                              onChange={(e) => setEditPrice(e.target.value)}
+                              className="w-16 bg-zinc-900 border border-gold-900/40 p-2 rounded text-xs text-center text-white focus:outline-none focus:border-gold-500"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-[#d4af37] font-display font-black text-base">
+                            ${cut.price}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-2">
                         {isEditing ? (
@@ -488,13 +452,27 @@ export default function AdminPanel({ onBack, onRefreshGallery }: AdminPanelProps
                             </button>
                           </>
                         ) : (
-                          <button
-                            onClick={() => startEdit(cut)}
-                            className="p-2 bg-gold-950/10 hover:bg-gold-950/30 border border-gold-900/40 hover:border-[#d4af37]/60 text-gold-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                            title="Editar Precio y Detalles"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => startEdit(cut)}
+                              className="p-2 bg-gold-950/10 hover:bg-gold-950/30 border border-gold-900/40 hover:border-[#d4af37]/60 text-gold-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                              title="Editar Precio"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(cut)}
+                              disabled={isDeleting}
+                              className="p-2 bg-red-950/10 hover:bg-red-650 border border-red-900/40 hover:border-red-500 text-red-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                              title="Eliminar de la Galería"
+                            >
+                              {isDeleting ? (
+                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>

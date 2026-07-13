@@ -5,12 +5,13 @@ import {
   doc, 
   updateDoc, 
   setDoc,
+  deleteDoc,
   query, 
   where, 
   orderBy 
 } from "firebase/firestore";
 import { db, isFirebaseConfigured, handleFirestoreError, OperationType, storage } from "./firebase";
-import { ref, listAll, getDownloadURL, uploadBytes } from "firebase/storage";
+import { ref, listAll, getDownloadURL, uploadBytes, deleteObject } from "firebase/storage";
 import { Haircut, Booking, Review, Barber } from "../types";
 
 // INITIAL PREMIUM STYLES WITH A BLACK & GOLD LUXURY THEME
@@ -309,6 +310,43 @@ export async function addOrUpdateHaircut(haircut: Haircut): Promise<void> {
     localStorage.setItem("aureum_haircuts", JSON.stringify(cuts));
   }
 }
+
+// 1d. Delete haircut details from Firestore and image from Storage
+export async function deleteHaircut(id: string, imageUrl: string, category: string): Promise<void> {
+  // 1. Delete from Firestore if it exists
+  if (isFirebaseConfigured && db) {
+    const cutRef = doc(db, "haircuts", id);
+    const path = `haircuts/${id}`;
+    try {
+      await deleteDoc(cutRef);
+    } catch (e) {
+      console.warn("Firestore document delete skipped/failed:", e);
+    }
+  } else {
+    // Local storage fallback
+    const stored = localStorage.getItem("aureum_haircuts");
+    if (stored) {
+      const cuts: Haircut[] = JSON.parse(stored);
+      const updated = cuts.filter(c => c.id !== id);
+      localStorage.setItem("aureum_haircuts", JSON.stringify(updated));
+    }
+  }
+
+  // 2. Delete from Storage if it's a storage file
+  if (isFirebaseConfigured && storage && id.startsWith("storage-")) {
+    try {
+      const prefix = `storage-${category}-`;
+      if (id.startsWith(prefix)) {
+        const filename = id.substring(prefix.length);
+        const fileRef = ref(storage, `${category}/${filename}`);
+        await deleteObject(fileRef);
+      }
+    } catch (e) {
+      console.error("Firebase Storage file delete failed:", e);
+    }
+  }
+}
+
 
 // Increment likes (Client feature)
 export async function likeHaircut(haircutId: string): Promise<void> {
